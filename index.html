@@ -2,266 +2,98 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sample Control System</title>
+<title>Sample Control</title>
 
 <style>
-body{margin:0;font-family:Segoe UI;background:#f4f6fa;}
-header{background:#1e293b;color:white;padding:14px;text-align:center;font-weight:bold;}
-.container{padding:12px;}
-.card{background:white;padding:14px;border-radius:12px;margin-bottom:14px;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
-input,select{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #ccc;}
-button{padding:10px;border:none;border-radius:8px;background:#2563eb;color:white;font-weight:bold;margin-top:6px;}
-.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
-.rack{padding:12px;text-align:center;border-radius:10px;font-size:12px;font-weight:bold;}
-.active{background:#16a34a;color:white;}
-.near{background:#f59e0b;}
-.expired{background:#dc2626;color:white;}
-.empty{background:#e5e7eb;}
-.small-text{font-size:11px;font-weight:normal;}
-.search-result{font-size:12px;border-bottom:1px solid #ddd;padding:6px 0;}
+body{font-family:Arial;background:#f3f4f6;margin:0;padding:15px}
+input,select{width:100%;padding:8px;margin:6px 0}
+button{padding:8px 12px;border:none;background:#2563eb;color:white}
+.card{background:white;padding:12px;border-radius:8px;margin-bottom:15px}
 </style>
 </head>
 
 <body>
 
-<header>SAMPLE CONTROL SYSTEM</header>
-
-<div class="container">
-
 <div class="card">
 <h3>Add Sample</h3>
 
-<select id="rack"></select>
-<input type="text" id="lot" placeholder="Lot Number">
+<input id="rack" placeholder="Rack">
+<input id="lot" placeholder="Lot">
+<input id="brand" placeholder="Brand">
+<input id="pm" placeholder="PM Code">
+<input id="sku" placeholder="SKU">
+<input id="bottles" placeholder="Bottles">
+<input type="date" id="date">
 
-<select id="brand">
-<option value="">Select Brand</option>
-<option>OOM ADVANCE</option>
-<option>NIHAR ADVANCE</option>
-<option>OOM GOLD</option>
-<option>NIHAR GOLD</option>
-<option>PARACHUTE</option>
-</select>
-
-<input type="text" id="pmcode" placeholder="PM Code">
-
-<select id="sku">
-<option value="">Select SKU</option>
-<option value="35ft">35ft</option>
-<option value="60ft">60ft</option>
-<option value="90ft">90ft</option>
-<option value="160ft">160ft</option>
-<option value="450ft">450ft</option>
-<option value="500ft">500ft</option>
-</select>
-
-<input type="number" id="bottles" placeholder="Bottle Count">
-<input type="date" id="sampleDate">
-
-<button onclick="addSample()">Submit</button>
+<button onclick="add()">Submit</button>
 </div>
 
 <div class="card">
-<h3>Search (Lot / Brand / PM Code)</h3>
-<input type="text" id="searchInput" placeholder="Search here..." onkeyup="searchData()">
-<div id="searchResult"></div>
-</div>
-
-<div class="card">
-<h3>Rack Dashboard</h3>
-<div class="grid" id="rackGrid"></div>
-</div>
-
+<h3>Data</h3>
+<div id="list"></div>
 </div>
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyjmNvPfuXx_nSlq04_4v-hucm6IA5bS4rZdOo8HWCicIPLD0yg7-U39OEgWfmg1t73fw/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbypvvTA3e2otuglX6yajGQa9Z8Larbaq0eOIIG6Y1J1JhvYI8oWliAXhlhx8LZ2OA3-Uw/exec";
 
-let data=[];
+async function load(){
+  const res = await fetch(API_URL);
+  const data = await res.json();
 
-/* INIT RACK DROPDOWN */
-const rackSelect=document.getElementById("rack");
-for(let i=1;i<=135;i++){
-  let option=document.createElement("option");
-  option.value=i;
-  option.text="Rack "+i;
-  rackSelect.appendChild(option);
+  const list=document.getElementById("list");
+  list.innerHTML="";
+
+  data.forEach(r=>{
+    list.innerHTML+=`
+      <div>
+        ${r[2]} | Rack ${r[1]}
+        <button onclick="del('${r[0]}')" style="background:red">Delete</button>
+      </div>
+    `;
+  });
 }
 
-/* AUTO BOTTLE */
-document.getElementById("sku").addEventListener("change",function(){
-  let sku=this.value;
-  let bottles=document.getElementById("bottles");
-  if(["35ft","60ft","90ft","160ft"].includes(sku)) bottles.value=8;
-  if(["450ft","500ft"].includes(sku)) bottles.value=5;
-});
+async function add(){
 
-/* LOAD DATA */
-async function loadData(){
-  try{
-    const res=await fetch(API_URL);
-    const result=await res.json();
-    data=result.map(r=>({
-      id:r[0],rack:r[1],lot:r[2],brand:r[3],pmcode:r[4],
-      sku:r[5],bottles:r[6],sampleDate:r[7],expiry:r[8],status:r[9]
-    }));
-    renderRack();
-  }catch(err){
-    console.error(err);
-    alert("Failed to load data");
-  }
-}
+  const body={
+    action:"add",
+    rack:document.getElementById("rack").value,
+    lot:document.getElementById("lot").value,
+    brand:document.getElementById("brand").value,
+    pm:document.getElementById("pm").value,
+    sku:document.getElementById("sku").value,
+    bottles:document.getElementById("bottles").value,
+    date:document.getElementById("date").value
+  };
 
-/* ADD SAMPLE */
-async function addSample(){
+  const res=await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body)
+  });
 
-  let rack=document.getElementById("rack").value;
-  let lot=document.getElementById("lot").value;
-  let brand=document.getElementById("brand").value;
-  let pmcode=document.getElementById("pmcode").value;
-  let sku=document.getElementById("sku").value;
-  let bottles=document.getElementById("bottles").value;
-  let sampleDate=document.getElementById("sampleDate").value;
+  const result=await res.json();
 
-  if(!rack||!lot||!brand||!pmcode||!sku||!bottles||!sampleDate){
-    alert("Fill all fields");
+  if(result.status==="duplicate"){
+    alert("Duplicate Entry");
     return;
   }
 
-  try{
-
-    const res = await fetch(API_URL,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        action:"addSample",
-        rack,
-        lot,
-        brand,
-        pmcode,
-        sku,
-        bottles,
-        sampleDate
-      })
-    });
-
-    const data = await res.json();
-
-    if(data.status==="duplicate"){
-      alert("Duplicate Lot");
-      return;
-    }
-
-    alert("Saved Successfully");
-    loadData();
-
-  }catch(error){
-    alert("Connection Error");
-  }
-}
-/* STATUS */
-function getStatus(expiry,status){
-  if(status==="SCRAPPED") return "SCRAPPED";
-  let diff=(new Date(expiry)-new Date())/(1000*60*60*24);
-  if(diff<0) return "EXPIRED";
-  if(diff<=30) return "NEAR EXPIRY";
-  return "ACTIVE";
+  load();
 }
 
-/* RENDER RACK */
-function renderRack(focus=null){
-  let grid=document.getElementById("rackGrid");
-  grid.innerHTML="";
-  for(let i=1;i<=135;i++){
-
-    if(focus && i!=focus) continue;
-
-    let rackData=data.filter(d=>d.rack==i && d.status!=="SCRAPPED");
-    let div=document.createElement("div");
-    div.classList.add("rack");
-
-    if(rackData.length===0){
-      div.classList.add("empty");
-      div.innerHTML="Rack "+i+"<br><span class='small-text'>Empty</span>";
-    }else{
-      let expired=rackData.filter(d=>getStatus(d.expiry,d.status)==="EXPIRED").length;
-      let near=rackData.filter(d=>getStatus(d.expiry,d.status)==="NEAR EXPIRY").length;
-
-      if(expired>0) div.classList.add("expired");
-      else if(near>0) div.classList.add("near");
-      else div.classList.add("active");
-
-      div.innerHTML="Rack "+i+"<br><span class='small-text'>"+rackData.length+" Lots</span>";
-    }
-
-    grid.appendChild(div);
-  }
-}
-
-/* SEARCH */
-function searchData(){
-  let input=document.getElementById("searchInput").value.toLowerCase();
-
-  if(input===""){
-    renderRack();
-    document.getElementById("searchResult").innerHTML="";
-    return;
-  }
-
-  let exact=data.find(d=>d.lot.toLowerCase()===input||d.pmcode.toLowerCase()===input);
-  if(exact) renderRack(exact.rack);
-  else document.getElementById("rackGrid").innerHTML="<p>No Rack Found</p>";
-
-  let resultDiv=document.getElementById("searchResult");
-  resultDiv.innerHTML="";
-
-  data.filter(d=>
-  d.lot.toLowerCase().includes(input)||
-  d.brand.toLowerCase().includes(input)||
-  d.pmcode.toLowerCase().includes(input)
-).forEach(d=>{
-  let div=document.createElement("div");
-  div.classList.add("search-result");
-
-  div.innerHTML=
-    "Lot: "+d.lot+
-    " | Brand: "+d.brand+
-    " | PM: "+d.pmcode+
-    " | Rack: "+d.rack+
-    " | Status: "+getStatus(d.expiry,d.status)+
-    " <br><button onclick='scrapEntry(\""+d.id+"\")'>Scrap</button> "+
-    " <button onclick='deleteEntryFrontend(\""+d.id+"\")' style='background:#dc2626'>Delete</button>";
-
-  resultDiv.appendChild(div);
-});
-}
-async function scrapEntry(id){
-  if(!confirm("Send to scrap?")) return;
-
-  const res = await fetch(API_URL,{
+async function del(id){
+  await fetch(API_URL,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({action:"scrap",id:id})
+    body:JSON.stringify({action:"delete",id})
   });
 
-  await res.json();
-  loadData();
+  load();
 }
 
-async function deleteEntryFrontend(id){
-  if(!confirm("Delete permanently?")) return;
-
-  const res = await fetch(API_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({action:"delete",id:id})
-  });
-
-  await res.json();
-  loadData();
-}
-loadData();
+load();
 
 </script>
 </body>
