@@ -208,22 +208,50 @@ function searchData(){
   resultDiv.innerHTML="";
 
   data.filter(d=>
-    d.lot.toLowerCase().includes(input)||
-    d.brand.toLowerCase().includes(input)||
-    d.pmcode.toLowerCase().includes(input)
-  ).forEach(d=>{
-    let div=document.createElement("div");
-    div.classList.add("search-result");
-    div.innerHTML=
-      "Lot: "+d.lot+
-      " | Brand: "+d.brand+
-      " | PM: "+d.pmcode+
-      " | Rack: "+d.rack+
-      " | Status: "+getStatus(d.expiry,d.status);
-    resultDiv.appendChild(div);
+  d.lot.toLowerCase().includes(input)||
+  d.brand.toLowerCase().includes(input)||
+  d.pmcode.toLowerCase().includes(input)
+).forEach(d=>{
+  let div=document.createElement("div");
+  div.classList.add("search-result");
+
+  div.innerHTML=
+    "Lot: "+d.lot+
+    " | Brand: "+d.brand+
+    " | PM: "+d.pmcode+
+    " | Rack: "+d.rack+
+    " | Status: "+getStatus(d.expiry,d.status)+
+    " <br><button onclick='scrapEntry(\""+d.id+"\")'>Scrap</button> "+
+    " <button onclick='deleteEntryFrontend(\""+d.id+"\")' style='background:#dc2626'>Delete</button>";
+
+  resultDiv.appendChild(div);
+});
+}
+async function scrapEntry(id){
+  if(!confirm("Send to scrap?")) return;
+
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"scrap",id:id})
   });
+
+  await res.json();
+  loadData();
 }
 
+async function deleteEntryFrontend(id){
+  if(!confirm("Delete permanently?")) return;
+
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"delete",id:id})
+  });
+
+  await res.json();
+  loadData();
+}
 loadData();
 
 </script>
