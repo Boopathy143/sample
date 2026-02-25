@@ -115,42 +115,51 @@ async function loadData(){
 
 /* ADD SAMPLE */
 async function addSample(){
+
+  let rack=document.getElementById("rack").value;
+  let lot=document.getElementById("lot").value;
+  let brand=document.getElementById("brand").value;
+  let pmcode=document.getElementById("pmcode").value;
+  let sku=document.getElementById("sku").value;
+  let bottles=document.getElementById("bottles").value;
+  let sampleDate=document.getElementById("sampleDate").value;
+
+  if(!rack||!lot||!brand||!pmcode||!sku||!bottles||!sampleDate){
+    alert("Fill all fields");
+    return;
+  }
+
   try{
-    let rack=rackSelect.value;
-    let lot=document.getElementById("lot").value.trim();
-    let brand=document.getElementById("brand").value;
-    let pmcode=document.getElementById("pmcode").value.trim();
-    let sku=document.getElementById("sku").value;
-    let bottles=document.getElementById("bottles").value;
-    let sampleDate=document.getElementById("sampleDate").value;
 
-    if(!rack||!lot||!brand||!pmcode||!sku||!bottles||!sampleDate){
-      alert("Fill all fields");return;
-    }
-
-    const res=await fetch(API_URL,{
+    const res = await fetch(API_URL,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({action:"addSample",rack,lot,brand,pmcode,sku,bottles,sampleDate})
+      body:JSON.stringify({
+        action:"addSample",
+        rack,
+        lot,
+        brand,
+        pmcode,
+        sku,
+        bottles,
+        sampleDate
+      })
     });
 
-    const result=await res.json();
+    const data = await res.json();
 
-    if(result.status==="duplicate"){
-      alert("Duplicate Entry Not Allowed");
-    }else if(result.status==="success"){
-      alert("Saved Successfully");
-      loadData();
-    }else{
-      alert("Server Error");
+    if(data.status==="duplicate"){
+      alert("Duplicate Lot");
+      return;
     }
 
-  }catch(err){
-    console.error(err);
+    alert("Saved Successfully");
+    loadData();
+
+  }catch(error){
     alert("Connection Error");
   }
 }
-
 /* STATUS */
 function getStatus(expiry,status){
   if(status==="SCRAPPED") return "SCRAPPED";
