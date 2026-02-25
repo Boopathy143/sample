@@ -5,85 +5,20 @@
 <title>Sample Control System</title>
 
 <style>
-body{
-  margin:0;
-  font-family:Segoe UI;
-  background:#f4f6fa;
-}
-header{
-  background:#1e293b;
-  color:white;
-  padding:12px;
-  text-align:center;
-  font-weight:bold;
-}
-.container{ padding:12px; }
-
-.card{
-  background:white;
-  padding:14px;
-  border-radius:10px;
-  margin-bottom:14px;
-  box-shadow:0 3px 8px rgba(0,0,0,0.1);
-}
-
-input, select{
-  width:100%;
-  padding:8px;
-  margin:6px 0;
-  border-radius:6px;
-  border:1px solid #ccc;
-}
-
-button{
-  padding:8px;
-  border:none;
-  border-radius:6px;
-  background:#2563eb;
-  color:white;
-  font-weight:bold;
-  margin-top:4px;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:8px;
-}
-
-.rack{
-  padding:10px;
-  text-align:center;
-  border-radius:8px;
-  font-size:12px;
-  font-weight:bold;
-}
-
-.active{ background:#16a34a; color:white; }
-.near{ background:#f59e0b; }
-.expired{ background:#dc2626; color:white; }
-.empty{ background:#e5e7eb; }
-
-.focusRack{
-  border:3px solid #2563eb;
-  box-shadow:0 0 15px #2563eb;
-  transform:scale(1.05);
-}
-
-.dimRack{
-  opacity:0.3;
-}
-
-.small-text{
-  font-size:11px;
-  font-weight:normal;
-}
-
-.search-result{
-  font-size:12px;
-  border-bottom:1px solid #ddd;
-  padding:6px 0;
-}
+body{margin:0;font-family:Segoe UI;background:#f4f6fa;}
+header{background:#1e293b;color:white;padding:14px;text-align:center;font-weight:bold;}
+.container{padding:12px;}
+.card{background:white;padding:14px;border-radius:12px;margin-bottom:14px;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+input,select{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #ccc;}
+button{padding:10px;border:none;border-radius:8px;background:#2563eb;color:white;font-weight:bold;margin-top:6px;}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.rack{padding:12px;text-align:center;border-radius:10px;font-size:12px;font-weight:bold;}
+.active{background:#16a34a;color:white;}
+.near{background:#f59e0b;}
+.expired{background:#dc2626;color:white;}
+.empty{background:#e5e7eb;}
+.small-text{font-size:11px;font-weight:normal;}
+.search-result{font-size:12px;border-bottom:1px solid #ddd;padding:6px 0;}
 </style>
 </head>
 
@@ -97,7 +32,6 @@ button{
 <h3>Add Sample</h3>
 
 <select id="rack"></select>
-
 <input type="text" id="lot" placeholder="Lot Number">
 
 <select id="brand">
@@ -144,10 +78,10 @@ button{
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxgO7ee4n7H2tOqc5N5MVpLHa7h6b1fgMmXzlGQuCOynXnMlKBQK1X12isdvBqENuAq/exec";
 
-let data = [];
+let data=[];
 
 /* INIT RACK DROPDOWN */
-const rackSelect = document.getElementById("rack");
+const rackSelect=document.getElementById("rack");
 for(let i=1;i<=135;i++){
   let option=document.createElement("option");
   option.value=i;
@@ -155,7 +89,7 @@ for(let i=1;i<=135;i++){
   rackSelect.appendChild(option);
 }
 
-/* AUTO BOTTLE COUNT */
+/* AUTO BOTTLE */
 document.getElementById("sku").addEventListener("change",function(){
   let sku=this.value;
   let bottles=document.getElementById("bottles");
@@ -163,76 +97,67 @@ document.getElementById("sku").addEventListener("change",function(){
   if(["450ft","500ft"].includes(sku)) bottles.value=5;
 });
 
-/* LOAD DATA FROM SHEET */
+/* LOAD DATA */
 async function loadData(){
-  const response = await fetch(API_URL);
-  const result = await response.json();
-
-  data = result.map(row => ({
-    id: row[0],
-    rack: row[1],
-    lot: row[2],
-    brand: row[3],
-    pmcode: row[4],
-    sku: row[5],
-    bottles: row[6],
-    sampleDate: row[7],
-    expiry: row[8],
-    status: row[9]
-  }));
-
-  renderRack();
+  try{
+    const res=await fetch(API_URL);
+    const result=await res.json();
+    data=result.map(r=>({
+      id:r[0],rack:r[1],lot:r[2],brand:r[3],pmcode:r[4],
+      sku:r[5],bottles:r[6],sampleDate:r[7],expiry:r[8],status:r[9]
+    }));
+    renderRack();
+  }catch(err){
+    console.error(err);
+    alert("Failed to load data");
+  }
 }
 
 /* ADD SAMPLE */
 async function addSample(){
+  try{
+    let rack=rackSelect.value;
+    let lot=document.getElementById("lot").value.trim();
+    let brand=document.getElementById("brand").value;
+    let pmcode=document.getElementById("pmcode").value.trim();
+    let sku=document.getElementById("sku").value;
+    let bottles=document.getElementById("bottles").value;
+    let sampleDate=document.getElementById("sampleDate").value;
 
-  let rack=rackSelect.value;
-  let lot=document.getElementById("lot").value;
-  let brand=document.getElementById("brand").value;
-  let pmcode=document.getElementById("pmcode").value;
-  let sku=document.getElementById("sku").value;
-  let bottles=document.getElementById("bottles").value;
-  let sampleDate=document.getElementById("sampleDate").value;
+    if(!rack||!lot||!brand||!pmcode||!sku||!bottles||!sampleDate){
+      alert("Fill all fields");return;
+    }
 
-  if(!rack || !lot || !brand || !pmcode || !sku || !bottles || !sampleDate){
-    alert("Fill all fields");
-    return;
-  }
+    const res=await fetch(API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"addSample",rack,lot,brand,pmcode,sku,bottles,sampleDate})
+    });
 
-  const response = await fetch(API_URL,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"addSample",
-      rack,lot,brand,pmcode,sku,bottles,sampleDate
-    })
-  });
+    const result=await res.json();
 
-  const result = await response.json();
+    if(result.status==="duplicate"){
+      alert("Duplicate Entry Not Allowed");
+    }else if(result.status==="success"){
+      alert("Saved Successfully");
+      loadData();
+    }else{
+      alert("Server Error");
+    }
 
-  if(result.status==="duplicate"){
-    alert("Duplicate Entry Not Allowed");
-  }else if(result.status==="success"){
-    alert("Saved Successfully");
-    loadData();
-  }else{
-    alert("Error Saving");
+  }catch(err){
+    console.error(err);
+    alert("Connection Error");
   }
 }
 
 /* STATUS */
 function getStatus(expiry,status){
   if(status==="SCRAPPED") return "SCRAPPED";
-  let today=new Date();
-  let exp=new Date(expiry);
-  let diff=(exp-today)/(1000*60*60*24);
+  let diff=(new Date(expiry)-new Date())/(1000*60*60*24);
   if(diff<0) return "EXPIRED";
   if(diff<=30) return "NEAR EXPIRY";
   return "ACTIVE";
-}
-
-function formatDate(dateStr){
-  return new Date(dateStr).toLocaleDateString("en-GB");
 }
 
 /* RENDER RACK */
@@ -240,6 +165,9 @@ function renderRack(focus=null){
   let grid=document.getElementById("rackGrid");
   grid.innerHTML="";
   for(let i=1;i<=135;i++){
+
+    if(focus && i!=focus) continue;
+
     let rackData=data.filter(d=>d.rack==i && d.status!=="SCRAPPED");
     let div=document.createElement("div");
     div.classList.add("rack");
@@ -258,11 +186,6 @@ function renderRack(focus=null){
       div.innerHTML="Rack "+i+"<br><span class='small-text'>"+rackData.length+" Lots</span>";
     }
 
-    if(focus){
-      if(i==focus) div.classList.add("focusRack");
-      else div.classList.add("dimRack");
-    }
-
     grid.appendChild(div);
   }
 }
@@ -270,22 +193,23 @@ function renderRack(focus=null){
 /* SEARCH */
 function searchData(){
   let input=document.getElementById("searchInput").value.toLowerCase();
+
   if(input===""){
     renderRack();
     document.getElementById("searchResult").innerHTML="";
     return;
   }
 
-  let found=data.find(d=>d.lot.toLowerCase()===input || d.pmcode.toLowerCase()===input);
-  if(found) renderRack(found.rack);
-  else renderRack();
+  let exact=data.find(d=>d.lot.toLowerCase()===input||d.pmcode.toLowerCase()===input);
+  if(exact) renderRack(exact.rack);
+  else document.getElementById("rackGrid").innerHTML="<p>No Rack Found</p>";
 
   let resultDiv=document.getElementById("searchResult");
   resultDiv.innerHTML="";
 
   data.filter(d=>
-    d.lot.toLowerCase().includes(input) ||
-    d.brand.toLowerCase().includes(input) ||
+    d.lot.toLowerCase().includes(input)||
+    d.brand.toLowerCase().includes(input)||
     d.pmcode.toLowerCase().includes(input)
   ).forEach(d=>{
     let div=document.createElement("div");
@@ -295,7 +219,6 @@ function searchData(){
       " | Brand: "+d.brand+
       " | PM: "+d.pmcode+
       " | Rack: "+d.rack+
-      " | Expires: "+formatDate(d.expiry)+
       " | Status: "+getStatus(d.expiry,d.status);
     resultDiv.appendChild(div);
   });
