@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample Control System</title>
+
+<style>
+body{margin:0;font-family:Segoe UI;background:#f4f6fa;}
+header{background:#1e293b;color:white;padding:12px;text-align:center;font-weight:bold;}
+.container{padding:12px;}
+.card{background:white;padding:14px;border-radius:10px;margin-bottom:14px;box-shadow:0 3px 8px rgba(0,0,0,0.1);}
+input,select{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
+button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;font-weight:bold;margin-top:4px;cursor:pointer;}
+
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.rack{padding:10px;text-align:center;border-radius:8px;font-size:12px;font-weight:bold;}
+.active{background:#16a34a;color:white;}
+.near{background:#f59e0b;}
+.expired{background:#dc2626;color:white;}
+.empty{background:#e5e7eb;}
+.small-text{font-size:11px;font-weight:normal;}
+.search-result{font-size:13px;border-bottom:1px solid #eee;padding:8px 0;}
+.focusRack{border:3px solid #2563eb;box-shadow:0 0 15px #2563eb;transform:scale(1.05);}
+.dimRack{opacity:0.3;}
+
+.summary-box{font-size:15px;line-height:1.8;}
+.summary-total{font-size:18px;font-weight:bold;padding:10px;border-radius:8px;margin-bottom:8px;}
+.active-box{background:#dcfce7;color:#166534;}
+.scrap-box{background:#fee2e2;color:#991b1b;}
+.brand-line{display:flex;justify-content:space-between;font-size:16px;padding:6px 0;border-bottom:1px solid #f1f1f1;}
+</style>
+</head>
+
+<body>
+
+<header>SAMPLE CONTROL SYSTEM</header>
+
+<div class="container">
+
+<div class="card">
+<h3>Add Sample</h3>
+<select id="rack"></select>
+<input type="text" id="lot" placeholder="Lot Number">
+
+<select id="brand">
+<option value="">Select Brand</option>
+<option>OOM ADVANCE</option>
+<option>NIHAR ADVANCE</option>
+<option>OOM GOLD</option>
+<option>NIHAR GOLD</option>
+<option>PARACHUTE</option>
+</select>
+
+<input type="text" id="pmcode" placeholder="PM Code">
+
+<select id="sku">
+<option value="">Select SKU</option>
+<option value="35ft">35ft</option>
+<option value="60ft">60ft</option>
+<option value="90ft">90ft</option>
+<option value="160ft">160ft</option>
+<option value="450ft">450ft</option>
+<option value="500ft">500ft</option>
+</select>
+
+<input type="number" id="bottles" placeholder="Bottle Count">
+<input type="date" id="sampleDate">
+<button onclick="addSample()">Submit</button>
+</div>
+
+<div class="card">
+<h3>Oil Summary</h3>
+<div id="oilSummary" class="summary-box"></div>
+</div>
+
+<div class="card">
+<h3>Search (Lot / Brand / PM Code / Date)</h3>
+<input type="text" id="searchInput" onkeyup="searchData()">
+<div id="searchResult"></div>
+</div>
+
+<div class="card">
+<h3>Rack Dashboard</h3>
+<div class="grid" id="rackGrid"></div>
+</div>
+
+</div>
+
+<script>
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgk0vQg47NjKkCRGh-xPeer_2yaAjHyH9S2hr2IxMCArEsxku5d3wXjB1OwIaULa0i/exec";
+
+let data = [];
+
+// ===== REAL SKU SPEC ML =====
+const weightMaster = {
+  "OOM ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "NIHAR ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "OOM GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "NIHAR GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "PARACHUTE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490}
+};
+
+// Rack dropdown
+const rackSelect=document.getElementById("rack");
+for(let i=1;i<=135;i++){
+ let opt=document.createElement("option");
+ opt.value=i;
+ opt.text="Rack "+i;
+ rackSelect.appendChild(opt);
+}
+
+// Auto bottle logic
+document.getElementById("sku").addEventListener("change",function(){
+ let sku=this.value;
+ let bottlesInput=document.getElementById("bottles");
+ if(["35ft","60ft","90ft","160ft"].includes(sku)){bottlesInput.value=8;}
+ if(["450ft","500ft"].includes(sku)){bottlesInput.value=5;}
+});
+
+// ===== LOAD FROM SHEET =====
+async function loadData(){
+  try{
+    const res = await fetch(WEB_APP_URL);
+    data = await res.json();
+    renderRack();
+    calculateSummary();
+  }catch(e){
+    console.error("Load error",e);
+  }
+}
+
+// ===== SAFE POST (NO BLOCK ISSUE) =====
+async function postData(payload){
+  return fetch(WEB_APP_URL,{
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(payload)
+  });
+}
+
+// ===== ADD SAMPLE =====
+async function addSample(){
+
+ let rack=document.getElementById("rack").value;
+ let lot=document.getElementById("lot").value;
+ let brand=document.getElementById("brand").value;
+ let pmcode=document.getElementById("pmcode").value;
+ let sku=document.getElementById("sku").value;
+ let bottles=document.getElementById("bottles").value;
+ let sampleDateInput=document.getElementById("sampleDate").value;
+
+ if(!rack||!lot||!brand||!pmcode||!sku||!bottles||!sampleDateInput){
+  alert("Fill all fields");
+  return;
+ }
+
+ let sampleDate=new Date(sampleDateInput);
+ let expiry=new Date(sampleDate);
+ expiry.setMonth(expiry.getMonth()+21);
+
+ await postData({
+  action:"add",
+  id:Date.now(),
+  rack,lot,brand,pmcode,sku,bottles,
+  sampleDate:sampleDate.toISOString(),
+  expiry:expiry.toISOString(),
+  status:"ACTIVE"
+ });
+
+ loadData();
+ alert("Saved Successfully");
+}
+
+// ===== SCRAP =====
+async function scrap(id){
+ await postData({action:"scrap",id});
+ loadData();
+ searchData();
+}
+
+// ===== DELETE =====
+async function deleteEntry(id){
+ await postData({action:"delete",id});
+ loadData();
+ searchData();
+}
+
+renderRack();
+calculateSummary();
+loadData();
+
+</script>
+
+</body>
+</html>
