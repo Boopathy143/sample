@@ -268,7 +268,7 @@ function searchData(){
   let input=document.getElementById("searchInput").value.toLowerCase();
 
   if(input === ""){
-    renderRack(); // reset view
+    renderRack();
     document.getElementById("searchResult").innerHTML="";
     return;
   }
@@ -276,22 +276,17 @@ function searchData(){
   let result=document.getElementById("searchResult");
   result.innerHTML="";
 
-  let foundEntry = data.find(d =>
-    d.lot.toLowerCase() === input ||
-    d.pmcode.toLowerCase() === input
-  );
-
-  if(foundEntry){
-    renderRack(foundEntry.rack); // 🔥 highlight only that rack
-  }else{
-    renderRack(); // no match → normal view
-  }
-
   let filtered=data.filter(d=>
-    d.lot.toLowerCase().includes(input) ||
-    d.brand.toLowerCase().includes(input) ||
-    d.pmcode.toLowerCase().includes(input)
+    (d.lot && d.lot.toLowerCase().includes(input)) ||
+    (d.brand && d.brand.toLowerCase().includes(input)) ||
+    (d.pmcode && d.pmcode.toLowerCase().includes(input))
   );
+
+  if(filtered.length>0){
+    renderRack(filtered[0].rack);
+  }else{
+    renderRack();
+  }
 
   filtered.forEach(d=>{
     let div=document.createElement("div");
@@ -305,7 +300,9 @@ function searchData(){
       " | SKU: "+d.sku+
       " | Collected: "+formatDate(d.sampleDate)+
       " | Expires On: "+formatDate(d.expiry)+
-      " | Status: "+getStatus(d.expiry,d.status);
+      " | Status: "+getStatus(d.expiry,d.status)+
+      "<br><button onclick='scrap("+d.id+")' style='background:#f59e0b;margin-top:5px;'>Scrap</button> "+
+      "<button onclick='deleteEntry("+d.id+")' style='background:#dc2626;margin-top:5px;'>Delete</button>";
 
     result.appendChild(div);
   });
