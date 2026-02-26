@@ -5,79 +5,29 @@
 <title>Sample Control System</title>
 
 <style>
-body{
-  margin:0;
-  font-family:Segoe UI;
-  background:#f4f6fa;
-}
-header{
-  background:#1e293b;
-  color:white;
-  padding:12px;
-  text-align:center;
-  font-weight:bold;
-}
-.container{
-  padding:12px;
-}
-.card{
-  background:white;
-  padding:14px;
-  border-radius:10px;
-  margin-bottom:14px;
-  box-shadow:0 3px 8px rgba(0,0,0,0.1);
-}
-input, select{
-  width:100%;
-  padding:8px;
-  margin:6px 0;
-  border-radius:6px;
-  border:1px solid #ccc;
-}
-button{
-  padding:8px;
-  border:none;
-  border-radius:6px;
-  background:#2563eb;
-  color:white;
-  font-weight:bold;
-  margin-top:4px;
-}
-  .focusRack{
-  border:3px solid #2563eb;
-  box-shadow:0 0 15px #2563eb;
-  transform:scale(1.05);
-}
+body{margin:0;font-family:Segoe UI;background:#f4f6fa;}
+header{background:#1e293b;color:white;padding:12px;text-align:center;font-weight:bold;}
+.container{padding:12px;}
+.card{background:white;padding:14px;border-radius:10px;margin-bottom:14px;box-shadow:0 3px 8px rgba(0,0,0,0.1);}
+input,select{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
+button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;font-weight:bold;margin-top:4px;cursor:pointer;}
 
-.dimRack{
-  opacity:0.3;
-}
-.grid{
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:8px;
-}
-.rack{
-  padding:10px;
-  text-align:center;
-  border-radius:8px;
-  font-size:12px;
-  font-weight:bold;
-}
-.active{ background:#16a34a; color:white; }
-.near{ background:#f59e0b; }
-.expired{ background:#dc2626; color:white; }
-.empty{ background:#e5e7eb; }
-.small-text{
-  font-size:11px;
-  font-weight:normal;
-}
-.search-result{
-  font-size:12px;
-  border-bottom:1px solid #ddd;
-  padding:6px 0;
-}
-  
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.rack{padding:10px;text-align:center;border-radius:8px;font-size:12px;font-weight:bold;}
+.active{background:#16a34a;color:white;}
+.near{background:#f59e0b;}
+.expired{background:#dc2626;color:white;}
+.empty{background:#e5e7eb;}
+.small-text{font-size:11px;font-weight:normal;}
+.search-result{font-size:13px;border-bottom:1px solid #eee;padding:8px 0;}
+.focusRack{border:3px solid #2563eb;box-shadow:0 0 15px #2563eb;transform:scale(1.05);}
+.dimRack{opacity:0.3;}
+
+.summary-box{font-size:15px;line-height:1.8;}
+.summary-total{font-size:18px;font-weight:bold;padding:10px;border-radius:8px;margin-bottom:8px;}
+.active-box{background:#dcfce7;color:#166534;}
+.scrap-box{background:#fee2e2;color:#991b1b;}
+.brand-line{display:flex;justify-content:space-between;font-size:16px;padding:6px 0;border-bottom:1px solid #f1f1f1;}
 </style>
 </head>
 
@@ -89,12 +39,9 @@ button{
 
 <div class="card">
 <h3>Add Sample</h3>
-
 <select id="rack"></select>
-
 <input type="text" id="lot" placeholder="Lot Number">
 
-<!-- EDIT YOUR REAL BRAND NAMES HERE -->
 <select id="brand">
 <option value="">Select Brand</option>
 <option>OOM ADVANCE</option>
@@ -117,15 +64,18 @@ button{
 </select>
 
 <input type="number" id="bottles" placeholder="Bottle Count">
-
 <input type="date" id="sampleDate">
-
 <button onclick="addSample()">Submit</button>
 </div>
 
 <div class="card">
+<h3>Oil Summary</h3>
+<div id="oilSummary" class="summary-box"></div>
+</div>
+
+<div class="card">
 <h3>Search (Lot / Brand / PM Code)</h3>
-<input type="text" id="searchInput" placeholder="Search here..." onkeyup="searchData()">
+<input type="text" id="searchInput" onkeyup="searchData()">
 <div id="searchResult"></div>
 </div>
 
@@ -140,198 +90,209 @@ button{
 
 let data = JSON.parse(localStorage.getItem("sampleData")) || [];
 
-// Rack Dropdown 1-135
-const rackSelect = document.getElementById("rack");
+// ===== SKU SPEC MASTER (PUT REAL ML FROM EXCEL HERE) =====
+const weightMaster = {
+  "OOM ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "NIHAR ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "OOM GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "NIHAR GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+  "PARACHUTE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490}
+};
+
+// Rack dropdown
+const rackSelect=document.getElementById("rack");
 for(let i=1;i<=135;i++){
-  let option = document.createElement("option");
-  option.value=i;
-  option.text="Rack "+i;
-  rackSelect.appendChild(option);
+ let opt=document.createElement("option");
+ opt.value=i;
+ opt.text="Rack "+i;
+ rackSelect.appendChild(opt);
 }
 
-// Auto Bottle Count
+// Auto bottle count
 document.getElementById("sku").addEventListener("change",function(){
-  let sku=this.value;
-  let bottlesInput=document.getElementById("bottles");
-  if(["35ft","60ft","90ft","160ft"].includes(sku)){
-    bottlesInput.value=8;
-  }
-  if(["450ft","500ft"].includes(sku)){
-    bottlesInput.value=5;
-  }
+ let sku=this.value;
+ let bottlesInput=document.getElementById("bottles");
+ if(["35ft","60ft","90ft","160ft"].includes(sku)){bottlesInput.value=8;}
+ if(["450ft","500ft"].includes(sku)){bottlesInput.value=5;}
 });
 
 function addSample(){
 
-  let rack=document.getElementById("rack").value;
-  let lot=document.getElementById("lot").value;
-  let brand=document.getElementById("brand").value;
-  let pmcode=document.getElementById("pmcode").value;
-  let sku=document.getElementById("sku").value;
-  let bottles=document.getElementById("bottles").value;
-  let sampleDateInput=document.getElementById("sampleDate").value;
+ let rack=document.getElementById("rack").value;
+ let lot=document.getElementById("lot").value;
+ let brand=document.getElementById("brand").value;
+ let pmcode=document.getElementById("pmcode").value;
+ let sku=document.getElementById("sku").value;
+ let bottles=document.getElementById("bottles").value;
+ let sampleDateInput=document.getElementById("sampleDate").value;
 
-  if(!rack || !lot || !brand || !pmcode || !sku || !bottles || !sampleDateInput){
-    alert("Fill all fields");
-    return;
+ if(!rack||!lot||!brand||!pmcode||!sku||!bottles||!sampleDateInput){
+  alert("Fill all fields");
+  return;
+ }
+
+ let sampleDate=new Date(sampleDateInput);
+ let expiry=new Date(sampleDate);
+ expiry.setMonth(expiry.getMonth()+21);
+
+ data.push({
+  id:Date.now(),
+  rack,lot,brand,pmcode,sku,bottles,
+  sampleDate:sampleDate.toISOString(),
+  expiry:expiry.toISOString(),
+  status:"ACTIVE"
+ });
+
+ localStorage.setItem("sampleData",JSON.stringify(data));
+ renderRack();
+ calculateSummary();
+ alert("Saved Successfully");
+}
+
+function calculateSummary(){
+
+ let active=data.filter(d=>d.status!=="SCRAPPED");
+ let scrap=data.filter(d=>d.status==="SCRAPPED");
+
+ let brandTotals={};
+ let activeKg=0;
+ let scrapKg=0;
+
+ active.forEach(d=>{
+  if(weightMaster[d.brand] && weightMaster[d.brand][d.sku]){
+   let specMl=weightMaster[d.brand][d.sku];
+   let totalMl=parseFloat(d.bottles)*specMl;
+   let kg=totalMl/1000;
+   activeKg+=kg;
+   if(!brandTotals[d.brand]) brandTotals[d.brand]=0;
+   brandTotals[d.brand]+=kg;
   }
+ });
 
-  let sampleDate=new Date(sampleDateInput);
-  let expiry=new Date(sampleDate);
-  expiry.setMonth(expiry.getMonth()+21);
+ scrap.forEach(d=>{
+  if(weightMaster[d.brand] && weightMaster[d.brand][d.sku]){
+   let specMl=weightMaster[d.brand][d.sku];
+   let totalMl=parseFloat(d.bottles)*specMl;
+   scrapKg+=totalMl/1000;
+  }
+ });
 
-  let entry={
-    id:Date.now(),
-    rack,
-    lot,
-    brand,
-    pmcode,
-    sku,
-    bottles,
-    sampleDate:sampleDate.toISOString(),
-    expiry:expiry.toISOString(),
-    status:"ACTIVE"
-  };
+ let html="";
+ html+="<div class='summary-total active-box'>Total Active Oil : "+activeKg.toFixed(3)+" KG</div>";
+ html+="<div class='summary-total scrap-box'>Total Scrap Oil : "+scrapKg.toFixed(3)+" KG</div>";
+ html+="<br><b style='font-size:17px;'>Brand Wise (Active Stock)</b><br>";
 
-  data.push(entry);
-  localStorage.setItem("sampleData",JSON.stringify(data));
+ for(let b in brandTotals){
+  html+="<div class='brand-line'><span>"+b+"</span><span>"+brandTotals[b].toFixed(3)+" KG</span></div>";
+ }
 
-  renderRack();
-  alert("Saved Successfully");
+ document.getElementById("oilSummary").innerHTML=html;
 }
 
 function getStatus(expiry,status){
-
-  if(status==="SCRAPPED") return "SCRAPPED";
-
-  let today=new Date();
-  let exp=new Date(expiry);
-  let diff=(exp-today)/(1000*60*60*24);
-
-  if(diff<0) return "EXPIRED";
-  if(diff<=30) return "NEAR EXPIRY";
-  return "ACTIVE";
-}
-
-function formatDate(dateStr){
-  let d=new Date(dateStr);
-  return d.toLocaleDateString("en-GB");
+ if(status==="SCRAPPED") return "SCRAPPED";
+ let today=new Date();
+ let exp=new Date(expiry);
+ let diff=(exp-today)/(1000*60*60*24);
+ if(diff<0) return "EXPIRED";
+ if(diff<=30) return "NEAR EXPIRY";
+ return "ACTIVE";
 }
 
 function renderRack(focusRackNumber=null){
 
-  let grid=document.getElementById("rackGrid");
-  grid.innerHTML="";
+ let grid=document.getElementById("rackGrid");
+ grid.innerHTML="";
 
-  for(let i=1;i<=135;i++){
+ for(let i=1;i<=135;i++){
 
-    let rackData=data.filter(d=>d.rack==i && d.status!=="SCRAPPED");
+  let rackData=data.filter(d=>d.rack==i && d.status!=="SCRAPPED");
+  let div=document.createElement("div");
+  div.classList.add("rack");
 
-    let div=document.createElement("div");
-    div.classList.add("rack");
-
-    div.setAttribute("data-rack", i);
-
-    if(rackData.length===0){
-      div.classList.add("empty");
-      div.innerHTML="Rack "+i+"<br><span class='small-text'>Empty</span>";
-    }else{
-
-      let expired=rackData.filter(d=>getStatus(d.expiry,d.status)==="EXPIRED").length;
-      let near=rackData.filter(d=>getStatus(d.expiry,d.status)==="NEAR EXPIRY").length;
-
-      if(expired>0){
-        div.classList.add("expired");
-      }else if(near>0){
-        div.classList.add("near");
-      }else{
-        div.classList.add("active");
-      }
-
-      div.innerHTML="Rack "+i+"<br><span class='small-text'>"+rackData.length+" Lots</span>";
-    }
-
-    // 🔥 Focus logic
-    if(focusRackNumber){
-      if(i == focusRackNumber){
-        div.classList.add("focusRack");
-      }else{
-        div.classList.add("dimRack");
-      }
-    }
-
-    grid.appendChild(div);
+  if(rackData.length===0){
+   div.classList.add("empty");
+   div.innerHTML="Rack "+i+"<br><span class='small-text'>Empty</span>";
+  }else{
+   let expired=rackData.filter(d=>getStatus(d.expiry,d.status)==="EXPIRED").length;
+   let near=rackData.filter(d=>getStatus(d.expiry,d.status)==="NEAR EXPIRY").length;
+   if(expired>0){div.classList.add("expired");}
+   else if(near>0){div.classList.add("near");}
+   else{div.classList.add("active");}
+   div.innerHTML="Rack "+i+"<br><span class='small-text'>"+rackData.length+" Lots</span>";
   }
+
+  if(focusRackNumber){
+   if(i==focusRackNumber){div.classList.add("focusRack");}
+   else{div.classList.add("dimRack");}
+  }
+
+  grid.appendChild(div);
+ }
 }
+
 function searchData(){
 
-  let input=document.getElementById("searchInput").value.toLowerCase();
+ let input=document.getElementById("searchInput").value.toLowerCase();
+ let result=document.getElementById("searchResult");
+ result.innerHTML="";
 
-  if(input === ""){
-    renderRack();
-    document.getElementById("searchResult").innerHTML="";
-    return;
-  }
+ if(input===""){renderRack();return;}
 
-  let result=document.getElementById("searchResult");
-  result.innerHTML="";
+ let filtered=data.filter(d=>
+  (d.lot && d.lot.toLowerCase().includes(input))||
+  (d.brand && d.brand.toLowerCase().includes(input))||
+  (d.pmcode && d.pmcode.toLowerCase().includes(input))
+ );
 
-  let filtered=data.filter(d=>
-    (d.lot && d.lot.toLowerCase().includes(input)) ||
-    (d.brand && d.brand.toLowerCase().includes(input)) ||
-    (d.pmcode && d.pmcode.toLowerCase().includes(input))
-  );
+ if(filtered.length>0){renderRack(filtered[0].rack);}
+ else{renderRack();}
 
-  if(filtered.length>0){
-    renderRack(filtered[0].rack);
-  }else{
-    renderRack();
-  }
+ filtered.forEach(d=>{
 
-  filtered.forEach(d=>{
-    let div=document.createElement("div");
-    div.classList.add("search-result");
+  let statusText=getStatus(d.expiry,d.status);
+  let statusColor="#16a34a";
+  if(statusText==="SCRAPPED") statusColor="#dc2626";
+  if(statusText==="EXPIRED") statusColor="#dc2626";
+  if(statusText==="NEAR EXPIRY") statusColor="#f59e0b";
 
-    div.innerHTML=
-      "Lot: "+d.lot+
-      " | Brand: "+d.brand+
-      " | PM: "+d.pmcode+
-      " | Rack: "+d.rack+
-      " | SKU: "+d.sku+
-      " | Collected: "+formatDate(d.sampleDate)+
-      " | Expires On: "+formatDate(d.expiry)+
-      " | Status: "+getStatus(d.expiry,d.status)+
-      "<br><button onclick='scrap("+d.id+")' style='background:#f59e0b;margin-top:5px;'>Scrap</button> "+
-      "<button onclick='deleteEntry("+d.id+")' style='background:#dc2626;margin-top:5px;'>Delete</button>";
+  let div=document.createElement("div");
+  div.classList.add("search-result");
 
-    result.appendChild(div);
-  });
+  div.innerHTML=
+   "<b>Lot:</b> "+d.lot+
+   " | <b>Brand:</b> "+d.brand+
+   " | <b>Rack:</b> "+d.rack+
+   "<br><b>Status:</b> <span style='color:"+statusColor+";font-weight:bold;'>"+statusText+"</span>"+
+   "<br><button onclick='scrap("+d.id+")' style='background:#f59e0b'>Scrap</button> "+
+   "<button onclick='deleteEntry("+d.id+")' style='background:#dc2626'>Delete</button>";
+
+  result.appendChild(div);
+ });
 }
+
 function scrap(id){
-
-  let index=data.findIndex(d=>d.id===id);
-  data[index].status="SCRAPPED";
-  localStorage.setItem("sampleData",JSON.stringify(data));
-
-  renderRack();
-  searchData();
+ let index=data.findIndex(d=>d.id===id);
+ data[index].status="SCRAPPED";
+ localStorage.setItem("sampleData",JSON.stringify(data));
+ renderRack();
+ calculateSummary();
+ searchData();
 }
+
 function deleteEntry(id){
-
-  let confirmDelete = confirm("Are you sure? This cannot be undone.");
-
-  if(!confirmDelete) return;
-
-  let index=data.findIndex(d=>d.id===id);
-
-  if(index !== -1){
-    data.splice(index,1); // remove permanently
-    localStorage.setItem("sampleData",JSON.stringify(data));
-    renderRack();
-    searchData();
-  }
+ let index=data.findIndex(d=>d.id===id);
+ if(index!==-1){
+  data.splice(index,1);
+  localStorage.setItem("sampleData",JSON.stringify(data));
+  renderRack();
+  calculateSummary();
+  searchData();
+ }
 }
+
 renderRack();
+calculateSummary();
 
 </script>
 
