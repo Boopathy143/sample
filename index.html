@@ -15,19 +15,8 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
 .rack{padding:10px;text-align:center;border-radius:8px;font-size:12px;font-weight:bold;}
 .active{background:#16a34a;color:white;}
-.near{background:#f59e0b;}
-.expired{background:#dc2626;color:white;}
 .empty{background:#e5e7eb;}
 .small-text{font-size:11px;font-weight:normal;}
-.search-result{font-size:13px;border-bottom:1px solid #eee;padding:8px 0;}
-.focusRack{border:3px solid #2563eb;box-shadow:0 0 15px #2563eb;transform:scale(1.05);}
-.dimRack{opacity:0.3;}
-
-.summary-box{font-size:15px;line-height:1.8;}
-.summary-total{font-size:18px;font-weight:bold;padding:10px;border-radius:8px;margin-bottom:8px;}
-.active-box{background:#dcfce7;color:#166534;}
-.scrap-box{background:#fee2e2;color:#991b1b;}
-.brand-line{display:flex;justify-content:space-between;font-size:16px;padding:6px 0;border-bottom:1px solid #f1f1f1;}
 </style>
 </head>
 
@@ -39,7 +28,9 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 
 <div class="card">
 <h3>Add Sample</h3>
+
 <select id="rack"></select>
+
 <input type="text" id="lot" placeholder="Lot Number">
 
 <select id="brand">
@@ -65,18 +56,8 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 
 <input type="number" id="bottles" placeholder="Bottle Count">
 <input type="date" id="sampleDate">
+
 <button onclick="addSample()">Submit</button>
-</div>
-
-<div class="card">
-<h3>Oil Summary</h3>
-<div id="oilSummary" class="summary-box"></div>
-</div>
-
-<div class="card">
-<h3>Search (Lot / Brand / PM Code)</h3>
-<input type="text" id="searchInput" onkeyup="searchData()">
-<div id="searchResult"></div>
 </div>
 
 <div class="card">
@@ -86,111 +67,30 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 
 </div>
 
-  id:Date.now(),
-  rack,lot,brand,pmcode,sku,bottles,
-  sampleDate:sampleDate.toISOString(),
-  expiry:expiry.toISOString(),
-  status:"ACTIVE"
- });
-
- localStorage.setItem("sampleData",JSON.stringify(data));
- renderRack();
- calculateSummary();
- alert("Saved Successfully");
-}
-
-function calculateSummary(){
-
- let active=data.filter(d=>d.status!=="SCRAPPED");
- let scrap=data.filter(d=>d.status==="SCRAPPED");
-
- let brandTotals={};
- let activeKg=0;
- let scrapKg=0;
-
- active.forEach(d=>{
-  if(weightMaster[d.brand] && weightMaster[d.brand][d.sku]){
-   let specMl=weightMaster[d.brand][d.sku];
-   let totalMl=parseFloat(d.bottles)*specMl;
-   let kg=totalMl/1000;
-   activeKg+=kg;
-   if(!brandTotals[d.brand]) brandTotals[d.brand]=0;
-   brandTotals[d.brand]+=kg;
-  }
- });
-
- scrap.forEach(d=>{
-  if(weightMaster[d.brand] && weightMaster[d.brand][d.sku]){
-   let specMl=weightMaster[d.brand][d.sku];
-   let totalMl=parseFloat(d.bottles)*specMl;
-   scrapKg+=totalMl/1000;
-  }
- });
-
- let html="";
- html+="<div class='summary-total active-box'>Total Active Oil : "+activeKg.toFixed(3)+" KG</div>";
- html+="<div class='summary-total scrap-box'>Total Scrap Oil : "+scrapKg.toFixed(3)+" KG</div>";
- html+="<br><b style='font-size:17px;'>Brand Wise (Active Stock)</b><br>";
-
- for(let b in brandTotals){
-  html+="<div class='brand-line'><span>"+b+"</span><span>"+brandTotals[b].toFixed(3)+" KG</span></div>";
- }
-
- document.getElementById("oilSummary").innerHTML=html;
-}
-
-function getStatus(expiry,status){
- if(status==="SCRAPPED") return "SCRAPPED";
- let today=new Date();
- let exp=new Date(expiry);
- let diff=(exp-today)/(1000*60*60*24);
- if(diff<0) return "EXPIRED";
- if(diff<=30) return "NEAR EXPIRY";
- return "ACTIVE";
-}
-
-function renderRack(focusRackNumber=null){
-
- let grid=document.getElementById("rackGrid");
- grid.innerHTML="";
-
- for(let i=1;i<=135;i++){
-
-  let rackData=data.filter(d=>d.rack==i && d.status!=="SCRAPPED");
-  let div=document.createElement("div");
-  div.classList.add("rack");
-
-  if(rackData.length===0){
-   div.classList.add("empty");
-   div.innerHTML="Rack "+i+"<br><span class='small-text'>Empty</span>";
-  }else{
-   let expired=rackData.filter(d=>getStatus(d.expiry,d.status)==="EXPIRED").length;
-   let near=rackData.filter(d=>getStatus(d.expiry,d.status)==="NEAR EXPIRY").length;
-   if(expired>0){div.classList.add("expired");}
-   else if(near>0){div.classList.add("near");}
-   else{div.classList.add("active");}
-   div.innerHTML="Rack "+i+"<br><span class='small-text'>"+rackData.length+" Lots</span>";
 <script>
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgk0vQg47NjKkCRGh-xPeer_2yaAjHyH9S2hr2IxMCArEsxku5d3wXjB1OwIaULa0i/exec";
 
 let data = [];
 
-// ===== REAL SKU SPEC ML =====
-const weightMaster = {
-  "OOM ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "NIHAR ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "OOM GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "NIHAR GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "PARACHUTE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490}
-};
+// ===== CREATE RACK DROPDOWN =====
+const rackSelect = document.getElementById("rack");
+for(let i=1;i<=135;i++){
+ let opt=document.createElement("option");
+ opt.value=i;
+ opt.text="Rack "+i;
+ rackSelect.appendChild(opt);
+}
 
-// ===== LOAD DATA FROM SHEET =====
+// ===== LOAD DATA =====
 async function loadData(){
-  const res = await fetch(WEB_APP_URL);
-  data = await res.json();
-  renderRack();
-  calculateSummary();
+  try{
+    const res = await fetch(WEB_APP_URL);
+    data = await res.json();
+    renderRack();
+  }catch(err){
+    console.error("Load error:",err);
+  }
 }
 
 // ===== ADD SAMPLE =====
@@ -213,87 +113,28 @@ async function addSample(){
  let expiry=new Date(sampleDate);
  expiry.setMonth(expiry.getMonth()+21);
 
- const entry={
-  action:"add",
-  id:Date.now(),
-  rack,lot,brand,pmcode,sku,bottles,
-  sampleDate:sampleDate.toISOString(),
-  expiry:expiry.toISOString(),
-  status:"ACTIVE"
- };
+ try{
+   await fetch(WEB_APP_URL,{
+     method:"POST",
+     body:JSON.stringify({
+       action:"add",
+       id:Date.now(),
+       rack,lot,brand,pmcode,sku,bottles,
+       sampleDate:sampleDate.toISOString(),
+       expiry:expiry.toISOString(),
+       status:"ACTIVE"
+     })
+   });
 
- await fetch(WEB_APP_URL,{
-   method:"POST",
-   body:JSON.stringify(entry)
- });
+   alert("Saved Successfully");
+   loadData();
 
- loadData();
- alert("Saved Successfully");
+ }catch(err){
+   console.error("Save error:",err);
+ }
 }
 
-// ===== SCRAP =====
-async function scrap(id){
- await fetch(WEB_APP_URL,{
-   method:"POST",
-   body:JSON.stringify({action:"scrap",id})
- });
- loadData();
-}
-
-// ===== DELETE =====
-async function deleteEntry(id){
- await fetch(WEB_APP_URL,{
-   method:"POST",
-   body:JSON.stringify({action:"delete",id})
- });
- loadData();
-}
-
-// ===== SUMMARY =====
-function calculateSummary(){
-
- let activeBrandTotals = {};
- let scrapBrandTotals = {};
- let activeKg = 0;
- let scrapKg = 0;
-
- data.forEach(d=>{
-
-  if(!weightMaster[d.brand] || !weightMaster[d.brand][d.sku]) return;
-
-  let kg = (parseFloat(d.bottles) * weightMaster[d.brand][d.sku]) / 1000;
-
-  if(d.status==="SCRAPPED"){
-    scrapKg += kg;
-    if(!scrapBrandTotals[d.brand]) scrapBrandTotals[d.brand]=0;
-    scrapBrandTotals[d.brand]+=kg;
-  } else {
-    activeKg += kg;
-    if(!activeBrandTotals[d.brand]) activeBrandTotals[d.brand]=0;
-    activeBrandTotals[d.brand]+=kg;
-  }
-
- });
-
- let html="";
- html+="<div class='summary-total active-box'>Total Active Oil : "+activeKg.toFixed(3)+" KG</div>";
-
- Object.keys(activeBrandTotals).forEach(b=>{
-  html+="<div class='brand-line'><span>"+b+"</span><span>"+activeBrandTotals[b].toFixed(3)+" KG</span></div>";
- });
-
- html+="<br>";
-
- html+="<div class='summary-total scrap-box'>Total Scrap Oil : "+scrapKg.toFixed(3)+" KG</div>";
-
- Object.keys(scrapBrandTotals).forEach(b=>{
-  html+="<div class='brand-line'><span>"+b+"</span><span>"+scrapBrandTotals[b].toFixed(3)+" KG</span></div>";
- });
-
- document.getElementById("oilSummary").innerHTML=html;
-}
-
-// ===== RACK =====
+// ===== RENDER RACK =====
 function renderRack(){
 
  let grid=document.getElementById("rackGrid");
@@ -321,7 +162,7 @@ function renderRack(){
 // INITIAL LOAD
 loadData();
 
-   </script>
+</script>
 
 </body>
 </html>
