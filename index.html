@@ -238,47 +238,29 @@ function exportExcel(){
 
 function downloadPDF(){
 
- let original = document.getElementById("oilSummary");
+ let element = document.getElementById("oilSummary");
 
- if(!original || original.innerHTML.trim()===""){
+ if(!element || element.innerHTML.trim()===""){
    alert("Oil Summary Empty");
    return;
  }
 
- // Create clean wrapper
- let wrapper = document.createElement("div");
- wrapper.style.padding = "20px";
- wrapper.style.background = "#ffffff";
- wrapper.style.color = "#000";
- wrapper.style.width = "800px";   // fixed width for proper render
-
- wrapper.innerHTML = `
-   <h2 style="text-align:center;margin-bottom:20px;">
-     Oil Summary Report
-   </h2>
-   ${original.innerHTML}
- `;
-
- document.body.appendChild(wrapper);
-
  let opt = {
-   margin: 10,
+   margin: 5,
    filename: 'Oil_Summary_Report.pdf',
    html2canvas: {
-     scale: 2,
-     useCORS: true
+     scale: 1,
+     scrollY: 0
    },
    jsPDF: {
      unit: 'mm',
      format: 'a4',
      orientation: 'portrait'
-   }
+   },
+   pagebreak: { mode: ['avoid-all','css','legacy'] }
  };
 
- html2pdf().set(opt).from(wrapper).save().then(()=>{
-   document.body.removeChild(wrapper);
- });
-
+ html2pdf().set(opt).from(element).save();
 }
 function renderRack(){
  let grid=document.getElementById("rackGrid");
