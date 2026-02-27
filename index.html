@@ -5,6 +5,7 @@
 <title>Sample Control System</title>
 
 <style>
+*{box-sizing:border-box;}
 body{margin:0;font-family:Segoe UI;background:#f4f6fa;}
 header{background:#1e293b;color:white;padding:12px;text-align:center;font-weight:bold;}
 .container{padding:12px;}
@@ -15,13 +16,9 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
 .rack{padding:10px;text-align:center;border-radius:8px;font-size:12px;font-weight:bold;}
 .active{background:#16a34a;color:white;}
-.near{background:#f59e0b;}
-.expired{background:#dc2626;color:white;}
 .empty{background:#e5e7eb;}
 .small-text{font-size:11px;font-weight:normal;}
 .search-result{font-size:13px;border-bottom:1px solid #eee;padding:8px 0;}
-.focusRack{border:3px solid #2563eb;box-shadow:0 0 15px #2563eb;transform:scale(1.05);}
-.dimRack{opacity:0.3;}
 
 .summary-box{font-size:15px;line-height:1.8;}
 .summary-total{font-size:18px;font-weight:bold;padding:10px;border-radius:8px;margin-bottom:8px;}
@@ -29,6 +26,8 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 .scrap-box{background:#fee2e2;color:#991b1b;}
 .brand-line{display:flex;justify-content:space-between;font-size:16px;padding:6px 0;border-bottom:1px solid #f1f1f1;}
 </style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 
 <body>
@@ -39,6 +38,7 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 
 <div class="card">
 <h3>Add Sample</h3>
+
 <select id="rack"></select>
 <input type="text" id="lot" placeholder="Lot Number">
 
@@ -65,11 +65,15 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 
 <input type="number" id="bottles" placeholder="Bottle Count">
 <input type="date" id="sampleDate">
+
 <button onclick="addSample()">Submit</button>
 </div>
 
 <div class="card">
 <h3>Oil Summary</h3>
+<button onclick="exportExcel()">Download Excel Report</button>
+<button onclick="downloadPDF()">Download Oil Summary PDF</button>
+  <br></br>
 <div id="oilSummary" class="summary-box"></div>
 </div>
 
@@ -88,20 +92,19 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 
 <script>
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgk0vQg47NjKkCRGh-xPeer_2yaAjHyH9S2hr2IxMCArEsxku5d3wXjB1OwIaULa0i/exec";
+const WEB_APP_URL="https://script.google.com/macros/s/AKfycbxgk0vQg47NjKkCRGh-xPeer_2yaAjHyH9S2hr2IxMCArEsxku5d3wXjB1OwIaULa0i/exec";
 
-let data = [];
+let data=[];
 
-// ===== REAL SKU SPEC ML =====
-const weightMaster = {
-  "OOM ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "NIHAR ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "OOM GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "NIHAR GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
-  "PARACHUTE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490}
+const weightMaster={
+"OOM ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+"NIHAR ADVANCE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+"OOM GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+"NIHAR GOLD":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490},
+"PARACHUTE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490}
 };
 
-// Rack dropdown
+// rack dropdown
 const rackSelect=document.getElementById("rack");
 for(let i=1;i<=135;i++){
  let opt=document.createElement("option");
@@ -110,36 +113,29 @@ for(let i=1;i<=135;i++){
  rackSelect.appendChild(opt);
 }
 
-// Auto bottle logic
+// auto bottle
 document.getElementById("sku").addEventListener("change",function(){
  let sku=this.value;
  let bottlesInput=document.getElementById("bottles");
- if(["35ft","60ft","90ft","160ft"].includes(sku)){bottlesInput.value=8;}
- if(["450ft","500ft"].includes(sku)){bottlesInput.value=5;}
+ if(["35ft","60ft","90ft","160ft"].includes(sku)) bottlesInput.value=8;
+ if(["450ft","500ft"].includes(sku)) bottlesInput.value=5;
 });
 
-// ===== LOAD FROM SHEET =====
 async function loadData(){
-  try{
-    const res = await fetch(WEB_APP_URL);
-    data = await res.json();
-    renderRack();
-    calculateSummary();
-  }catch(e){
-    console.error("Load error",e);
-  }
+ const res=await fetch(WEB_APP_URL);
+ data=await res.json();
+ renderRack();
+ calculateSummary();
 }
 
-// ===== SAFE POST (NO BLOCK ISSUE) =====
 async function postData(payload){
-  return fetch(WEB_APP_URL,{
-    method:"POST",
-    headers:{"Content-Type":"text/plain;charset=utf-8"},
-    body:JSON.stringify(payload)
-  });
+ await fetch(WEB_APP_URL,{
+  method:"POST",
+  headers:{"Content-Type":"text/plain;charset=utf-8"},
+  body:JSON.stringify(payload)
+ });
 }
 
-// ===== ADD SAMPLE =====
 async function addSample(){
 
  let rack=document.getElementById("rack").value;
@@ -151,8 +147,8 @@ async function addSample(){
  let sampleDateInput=document.getElementById("sampleDate").value;
 
  if(!rack||!lot||!brand||!pmcode||!sku||!bottles||!sampleDateInput){
-  alert("Fill all fields");
-  return;
+   alert("Fill all fields");
+   return;
  }
 
  let sampleDate=new Date(sampleDateInput);
@@ -168,26 +164,176 @@ async function addSample(){
   status:"ACTIVE"
  });
 
- loadData();
+ await loadData();
  alert("Saved Successfully");
 }
 
-// ===== SCRAP =====
 async function scrap(id){
  await postData({action:"scrap",id});
- loadData();
+ await loadData();
  searchData();
 }
 
-// ===== DELETE =====
 async function deleteEntry(id){
  await postData({action:"delete",id});
- loadData();
+ await loadData();
  searchData();
 }
 
-renderRack();
-calculateSummary();
+function calculateSummary(){
+
+ let activeBrandTotals={},scrapBrandTotals={},activeKg=0,scrapKg=0;
+
+ data.forEach(d=>{
+  if(!weightMaster[d.brand]||!weightMaster[d.brand][d.sku])return;
+  let kg=(parseFloat(d.bottles)*weightMaster[d.brand][d.sku])/1000;
+  if(d.status==="SCRAPPED"){
+    scrapKg+=kg;
+    if(!scrapBrandTotals[d.brand])scrapBrandTotals[d.brand]=0;
+    scrapBrandTotals[d.brand]+=kg;
+  }else{
+    activeKg+=kg;
+    if(!activeBrandTotals[d.brand])activeBrandTotals[d.brand]=0;
+    activeBrandTotals[d.brand]+=kg;
+  }
+ });
+
+ let html="";
+ html+=`<div class="summary-total active-box">Total Active Oil : ${activeKg.toFixed(3)} KG</div>`;
+ Object.keys(activeBrandTotals).forEach(b=>{
+  html+=`<div class="brand-line"><span>${b}</span><span>${activeBrandTotals[b].toFixed(3)} KG</span></div>`;
+ });
+ html+="<br>";
+ html+=`<div class="summary-total scrap-box">Total Scrap Oil : ${scrapKg.toFixed(3)} KG</div>`;
+ Object.keys(scrapBrandTotals).forEach(b=>{
+  html+=`<div class="brand-line"><span>${b}</span><span>${scrapBrandTotals[b].toFixed(3)} KG</span></div>`;
+ });
+
+ document.getElementById("oilSummary").innerHTML=html;
+}
+
+function exportExcel(){
+
+ let activeBrandTotals={},scrapBrandTotals={};
+
+ data.forEach(d=>{
+  if(!weightMaster[d.brand]||!weightMaster[d.brand][d.sku])return;
+  let kg=(parseFloat(d.bottles)*weightMaster[d.brand][d.sku])/1000;
+  if(d.status==="SCRAPPED"){
+    if(!scrapBrandTotals[d.brand])scrapBrandTotals[d.brand]=0;
+    scrapBrandTotals[d.brand]+=kg;
+  }else{
+    if(!activeBrandTotals[d.brand])activeBrandTotals[d.brand]=0;
+    activeBrandTotals[d.brand]+=kg;
+  }
+ });
+
+ let csv="Brand,Active KG,Scrap KG\n";
+ let brands=new Set([...Object.keys(activeBrandTotals),...Object.keys(scrapBrandTotals)]);
+ brands.forEach(b=>{
+  csv+=`${b},${(activeBrandTotals[b]||0).toFixed(3)},${(scrapBrandTotals[b]||0).toFixed(3)}\n`;
+ });
+
+ let blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+ let url=URL.createObjectURL(blob);
+ let link=document.createElement("a");
+ link.href=url;
+ link.download="Brand_Oil_Report.csv";
+ document.body.appendChild(link);
+ link.click();
+ document.body.removeChild(link);
+}
+
+function downloadPDF(){
+
+ let element = document.getElementById("oilSummary");
+
+ if(!element || element.innerHTML.trim()===""){
+   alert("Oil Summary Empty");
+   return;
+ }
+
+ let opt = {
+   margin: 8,
+   filename: 'Oil_Summary_Report.pdf',
+   image: { type: 'jpeg', quality: 0.98 },
+   html2canvas: {
+     scale: 1.5,
+     scrollY: 0
+   },
+   jsPDF: {
+     unit: 'mm',
+     format: 'a4',
+     orientation: 'portrait'
+   },
+   pagebreak: { mode: ['avoid-all'] }
+ };
+
+ html2pdf().set(opt).from(element).save();
+}
+
+function renderRack(){
+ let grid=document.getElementById("rackGrid");
+ grid.innerHTML="";
+ for(let i=1;i<=135;i++){
+  let rackData=data.filter(d=>parseInt(d.rack)===i&&d.status!=="SCRAPPED");
+  let div=document.createElement("div");
+  div.classList.add("rack");
+  if(rackData.length===0){
+    div.classList.add("empty");
+    div.innerHTML="Rack "+i+"<br><span class='small-text'>Empty</span>";
+  }else{
+    div.classList.add("active");
+    div.innerHTML="Rack "+i+"<br><span class='small-text'>"+rackData.length+" Lots</span>";
+  }
+  grid.appendChild(div);
+ }
+}
+
+function searchData(){
+
+ let input=document.getElementById("searchInput").value.toLowerCase().trim();
+ let result=document.getElementById("searchResult");
+ result.innerHTML="";
+
+ if(input===""){
+   renderRack();
+   return;
+ }
+
+ let filtered=data.filter(d=>{
+   let formattedDate=new Date(d.sampleDate).toLocaleDateString("en-GB");
+   return d.lot.toLowerCase().includes(input) ||
+          d.brand.toLowerCase().includes(input) ||
+          d.pmcode.toLowerCase().includes(input) ||
+          formattedDate.includes(input);
+ });
+
+ filtered.forEach(d=>{
+
+   let formattedDate=new Date(d.sampleDate).toLocaleDateString("en-GB");
+
+   let statusColor = d.status==="SCRAPPED" ? "red" : "green";
+
+   let div=document.createElement("div");
+   div.classList.add("search-result");
+
+   div.innerHTML=
+     `<b>Lot:</b> ${d.lot} |
+      <b>Brand:</b> ${d.brand} |
+      <b>Rack:</b> ${d.rack} |
+      <b>Date:</b> ${formattedDate} |
+      <b style="color:${statusColor}">${d.status}</b>
+      <br>
+      ${d.status!=="SCRAPPED" ? 
+        `<button onclick="scrap(${d.id})" style="background:#f59e0b">Scrap</button>` 
+        : ""}
+      <button onclick="deleteEntry(${d.id})" style="background:#dc2626">Delete</button>`;
+
+   result.appendChild(div);
+ });
+}
+
 loadData();
 
 </script>
