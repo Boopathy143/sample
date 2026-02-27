@@ -12,14 +12,12 @@ header{background:#1e293b;color:white;padding:12px;text-align:center;font-weight
 .card{background:white;padding:14px;border-radius:10px;margin-bottom:14px;box-shadow:0 3px 8px rgba(0,0,0,0.1);}
 input,select{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #ccc;}
 button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;font-weight:bold;margin-top:4px;cursor:pointer;}
-
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
 .rack{padding:10px;text-align:center;border-radius:8px;font-size:12px;font-weight:bold;}
 .active{background:#16a34a;color:white;}
 .empty{background:#e5e7eb;}
 .small-text{font-size:11px;font-weight:normal;}
 .search-result{font-size:13px;border-bottom:1px solid #eee;padding:8px 0;}
-
 .summary-box{font-size:15px;line-height:1.8;}
 .summary-total{font-size:18px;font-weight:bold;padding:10px;border-radius:8px;margin-bottom:8px;}
 .active-box{background:#dcfce7;color:#166534;}
@@ -73,7 +71,7 @@ button{padding:8px;border:none;border-radius:6px;background:#2563eb;color:white;
 <h3>Oil Summary</h3>
 <button onclick="exportExcel()">Download Excel Report</button>
 <button onclick="downloadPDF()">Download Oil Summary PDF</button>
-  <br></br>
+<br><br>
 <div id="oilSummary" class="summary-box"></div>
 </div>
 
@@ -104,7 +102,6 @@ const weightMaster={
 "PARACHUTE":{"35ft":29,"60ft":58,"90ft":88,"160ft":155,"450ft":440,"500ft":490}
 };
 
-// rack dropdown
 const rackSelect=document.getElementById("rack");
 for(let i=1;i<=135;i++){
  let opt=document.createElement("option");
@@ -113,7 +110,6 @@ for(let i=1;i<=135;i++){
  rackSelect.appendChild(opt);
 }
 
-// auto bottle
 document.getElementById("sku").addEventListener("change",function(){
  let sku=this.value;
  let bottlesInput=document.getElementById("bottles");
@@ -131,13 +127,11 @@ async function loadData(){
 async function postData(payload){
  await fetch(WEB_APP_URL,{
   method:"POST",
-  headers:{"Content-Type":"text/plain;charset=utf-8"},
   body:JSON.stringify(payload)
  });
 }
 
 async function addSample(){
-
  let rack=document.getElementById("rack").value;
  let lot=document.getElementById("lot").value;
  let brand=document.getElementById("brand").value;
@@ -181,7 +175,6 @@ async function deleteEntry(id){
 }
 
 function calculateSummary(){
-
  let activeBrandTotals={},scrapBrandTotals={},activeKg=0,scrapKg=0;
 
  data.forEach(d=>{
@@ -212,64 +205,10 @@ function calculateSummary(){
  document.getElementById("oilSummary").innerHTML=html;
 }
 
-function exportExcel(){
-
- let activeBrandTotals={},scrapBrandTotals={};
-
- data.forEach(d=>{
-  if(!weightMaster[d.brand]||!weightMaster[d.brand][d.sku])return;
-  let kg=(parseFloat(d.bottles)*weightMaster[d.brand][d.sku])/1000;
-  if(d.status==="SCRAPPED"){
-    if(!scrapBrandTotals[d.brand])scrapBrandTotals[d.brand]=0;
-    scrapBrandTotals[d.brand]+=kg;
-  }else{
-    if(!activeBrandTotals[d.brand])activeBrandTotals[d.brand]=0;
-    activeBrandTotals[d.brand]+=kg;
-  }
- });
-
- let csv="Brand,Active KG,Scrap KG\n";
- let brands=new Set([...Object.keys(activeBrandTotals),...Object.keys(scrapBrandTotals)]);
- brands.forEach(b=>{
-  csv+=`${b},${(activeBrandTotals[b]||0).toFixed(3)},${(scrapBrandTotals[b]||0).toFixed(3)}\n`;
- });
-
- let blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
- let url=URL.createObjectURL(blob);
- let link=document.createElement("a");
- link.href=url;
- link.download="Brand_Oil_Report.csv";
- document.body.appendChild(link);
- link.click();
- document.body.removeChild(link);
-}
-
 function downloadPDF(){
-
- let element = document.getElementById("oilSummary");
-
- if(!element || element.innerHTML.trim()===""){
-   alert("Oil Summary Empty");
-   return;
- }
-
- let opt = {
-   margin: 8,
-   filename: 'Oil_Summary_Report.pdf',
-   image: { type: 'jpeg', quality: 0.98 },
-   html2canvas: {
-     scale: 1.5,
-     scrollY: 0
-   },
-   jsPDF: {
-     unit: 'mm',
-     format: 'a4',
-     orientation: 'portrait'
-   },
-   pagebreak: { mode: ['avoid-all'] }
- };
-
- html2pdf().set(opt).from(element).save();
+ let element=document.getElementById("oilSummary");
+ if(!element||element.innerHTML.trim()===""){alert("Oil Summary Empty");return;}
+ html2pdf().from(element).save("Oil_Summary_Report.pdf");
 }
 
 function renderRack(){
@@ -291,52 +230,37 @@ function renderRack(){
 }
 
 function searchData(){
-
  let input=document.getElementById("searchInput").value.toLowerCase().trim();
  let result=document.getElementById("searchResult");
  result.innerHTML="";
-
- if(input===""){
-   renderRack();
-   return;
- }
-
+ if(input===""){renderRack();return;}
  let filtered=data.filter(d=>{
-   let formattedDate=new Date(d.sampleDate).toLocaleDateString("en-GB");
-   return d.lot.toLowerCase().includes(input) ||
-          d.brand.toLowerCase().includes(input) ||
-          d.pmcode.toLowerCase().includes(input) ||
-          formattedDate.includes(input);
+  let formattedDate=new Date(d.sampleDate).toLocaleDateString("en-GB");
+  return d.lot.toLowerCase().includes(input)||
+         d.brand.toLowerCase().includes(input)||
+         d.pmcode.toLowerCase().includes(input)||
+         formattedDate.includes(input);
  });
-
  filtered.forEach(d=>{
-
-   let formattedDate=new Date(d.sampleDate).toLocaleDateString("en-GB");
-
-   let statusColor = d.status==="SCRAPPED" ? "red" : "green";
-
-   let div=document.createElement("div");
-   div.classList.add("search-result");
-
-   div.innerHTML=
-     `<b>Lot:</b> ${d.lot} |
-      <b>Brand:</b> ${d.brand} |
-      <b>Rack:</b> ${d.rack} |
-      <b>Date:</b> ${formattedDate} |
-      <b style="color:${statusColor}">${d.status}</b>
-      <br>
-      ${d.status!=="SCRAPPED" ? 
-        `<button onclick="scrap(${d.id})" style="background:#f59e0b">Scrap</button>` 
-        : ""}
-      <button onclick="deleteEntry(${d.id})" style="background:#dc2626">Delete</button>`;
-
-   result.appendChild(div);
+  let formattedDate=new Date(d.sampleDate).toLocaleDateString("en-GB");
+  let statusColor=d.status==="SCRAPPED"?"red":"green";
+  let div=document.createElement("div");
+  div.classList.add("search-result");
+  div.innerHTML=
+   `<b>Lot:</b> ${d.lot} |
+    <b>Brand:</b> ${d.brand} |
+    <b>Rack:</b> ${d.rack} |
+    <b>Date:</b> ${formattedDate} |
+    <b style="color:${statusColor}">${d.status}</b>
+    <br>
+    ${d.status!=="SCRAPPED"?`<button onclick="scrap(${d.id})" style="background:#f59e0b">Scrap</button>`:""}
+    <button onclick="deleteEntry(${d.id})" style="background:#dc2626">Delete</button>`;
+  result.appendChild(div);
  });
 }
 
 loadData();
 
 </script>
-
 </body>
 </html>
