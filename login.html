@@ -1,217 +1,128 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BluPolymer - Login</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BluPolymer Login</title>
 
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-
-body{
-  font-family: 'Segoe UI', sans-serif;
-  height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background:linear-gradient(135deg,#0f172a,#1e3a8a);
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
 }
 
-.wrapper{
-  width:100%;
-  max-width:400px;
-  padding:20px;
+body{
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+}
+
+.container{
+    width:350px;
+    background:#ffffff;
+    padding:30px 25px;
+    border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    text-align:center;
 }
 
 .logo{
-  text-align:center;
-  margin-bottom:25px;
+    width:180px;
+    margin-bottom:20px;
 }
 
-.logo img{
-  width:220px;
-}
-
-.card{
-  background:white;
-  padding:30px 25px;
-  border-radius:14px;
-  box-shadow:0 20px 40px rgba(0,0,0,0.25);
-}
-
-.card h2{
-  text-align:center;
-  margin-bottom:20px;
-  color:#1e293b;
+h2{
+    margin-bottom:20px;
+    color:#333;
 }
 
 input{
-  width:100%;
-  padding:12px;
-  margin:8px 0;
-  border-radius:8px;
-  border:1px solid #d1d5db;
-  font-size:14px;
-}
-
-input:focus{
-  outline:none;
-  border-color:#2563eb;
+    width:100%;
+    padding:12px;
+    margin-bottom:15px;
+    border:1px solid #ccc;
+    border-radius:6px;
+    font-size:14px;
 }
 
 button{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border:none;
-  border-radius:8px;
-  background:#2563eb;
-  color:white;
-  font-weight:600;
-  font-size:15px;
-  cursor:pointer;
+    width:100%;
+    padding:12px;
+    background:#007bff;
+    color:white;
+    border:none;
+    border-radius:6px;
+    font-size:15px;
+    cursor:pointer;
+    transition:0.3s;
 }
 
 button:hover{
-  background:#1d4ed8;
+    background:#0056b3;
 }
 
 .link{
-  text-align:center;
-  margin-top:15px;
-  font-size:14px;
+    margin-top:15px;
+    font-size:13px;
 }
 
-.link span{
-  color:#2563eb;
-  cursor:pointer;
-  font-weight:600;
-}
-
-.hidden{
-  display:none;
+.link a{
+    color:#007bff;
+    text-decoration:none;
+    font-weight:bold;
 }
 </style>
 </head>
 
 <body>
 
-<div class="wrapper">
+<div class="container">
 
-<div class="logo">
-  <!-- Replace src with your generated logo file name -->
-  <img src="logo.png" alt="BluPolymer Logo">
-</div>
+    <img src="logo.png" class="logo">
 
-<div class="card">
-
-  <!-- LOGIN FORM -->
-  <div id="loginBox">
     <h2>Login</h2>
-    <input type="email" id="loginEmail" placeholder="Email">
-    <input type="password" id="loginPassword" placeholder="Password">
+
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+
     <button onclick="login()">Login</button>
-    <div class="link">
-      Don’t have account? <span onclick="showSignup()">Sign Up</span>
-    </div>
-  </div>
 
-  <!-- SIGNUP FORM -->
-  <div id="signupBox" class="hidden">
-    <h2>Create Account</h2>
-    <input type="text" id="signupName" placeholder="Full Name">
-    <input type="email" id="signupEmail" placeholder="Email">
-    <input type="password" id="signupPassword" placeholder="Password">
-    <button onclick="signup()">Sign Up</button>
     <div class="link">
-      Already have account? <span onclick="showLogin()">Login</span>
+        Don't have account?
+        <a href="signup.html">Sign Up</a>
     </div>
-  </div>
 
-</div>
 </div>
 
 <script>
+const API_URL = "https://script.google.com/macros/s/AKfycbyAfNu104JKFumSsXghnNA4S8jvqV9vM1bc14j7He1A7OuDlU9CamB6NSx-o84fFkGv/exec";
 
-const WEB_APP_URL="https://script.google.com/macros/s/AKfycbyAfNu104JKFumSsXghnNA4S8jvqV9vM1bc14j7He1A7OuDlU9CamB6NSx-o84fFkGv/exec";
+function login(){
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
-// ===== Toggle Forms =====
-function showSignup(){
-  document.getElementById("loginBox").classList.add("hidden");
-  document.getElementById("signupBox").classList.remove("hidden");
-}
-
-function showLogin(){
-  document.getElementById("signupBox").classList.add("hidden");
-  document.getElementById("loginBox").classList.remove("hidden");
-}
-
-// ===== Hash Password =====
-async function hashPassword(password){
- const encoder = new TextEncoder();
- const data = encoder.encode(password);
- const hashBuffer = await crypto.subtle.digest("SHA-256", data);
- const hashArray = Array.from(new Uint8Array(hashBuffer));
- return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-// ===== Signup =====
-async function signup(){
-  let name=document.getElementById("signupName").value;
-  let email=document.getElementById("signupEmail").value;
-  let password=document.getElementById("signupPassword").value;
-
-  if(!name || !email || !password){
-    alert("Fill all fields");
-    return;
-  }
-
-  let passwordHash=await hashPassword(password);
-
-  await fetch(WEB_APP_URL,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"signup",
-      name,
-      email,
-      passwordHash
+    fetch(API_URL,{
+        method:"POST",
+        body:JSON.stringify({
+            action:"login",
+            email:email,
+            password:password
+        })
     })
-  });
-
-  alert("Account Created. Please Login.");
-  showLogin();
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.status==="success"){
+            localStorage.setItem("user",email);
+            window.location.href="index.html";
+        }else{
+            alert("Invalid login");
+        }
+    });
 }
-
-// ===== Login =====
-async function login(){
-  let email=document.getElementById("loginEmail").value;
-  let password=document.getElementById("loginPassword").value;
-
-  if(!email || !password){
-    alert("Enter email & password");
-    return;
-  }
-
-  let passwordHash=await hashPassword(password);
-
-  let res=await fetch(WEB_APP_URL,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"login",
-      email,
-      passwordHash
-    })
-  });
-
-  let result=await res.json();
-
-  if(result.status==="success"){
-    localStorage.setItem("loggedIn","true");
-    window.location.href="index.html";
-  }else{
-    alert("Invalid credentials");
-  }
-}
-
 </script>
 
 </body>
