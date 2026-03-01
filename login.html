@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BluPolymer - Login</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body{
+  font-family: 'Segoe UI', sans-serif;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(135deg,#0f172a,#1e3a8a);
+}
+
+.wrapper{
+  width:100%;
+  max-width:400px;
+  padding:20px;
+}
+
+.logo{
+  text-align:center;
+  margin-bottom:25px;
+}
+
+.logo img{
+  width:220px;
+}
+
+.card{
+  background:white;
+  padding:30px 25px;
+  border-radius:14px;
+  box-shadow:0 20px 40px rgba(0,0,0,0.25);
+}
+
+.card h2{
+  text-align:center;
+  margin-bottom:20px;
+  color:#1e293b;
+}
+
+input{
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  border-radius:8px;
+  border:1px solid #d1d5db;
+  font-size:14px;
+}
+
+input:focus{
+  outline:none;
+  border-color:#2563eb;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  font-weight:600;
+  font-size:15px;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#1d4ed8;
+}
+
+.link{
+  text-align:center;
+  margin-top:15px;
+  font-size:14px;
+}
+
+.link span{
+  color:#2563eb;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.hidden{
+  display:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+<div class="logo">
+  <!-- Replace src with your generated logo file name -->
+  <img src="logo.png" alt="BluPolymer Logo">
+</div>
+
+<div class="card">
+
+  <!-- LOGIN FORM -->
+  <div id="loginBox">
+    <h2>Login</h2>
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div class="link">
+      Don’t have account? <span onclick="showSignup()">Sign Up</span>
+    </div>
+  </div>
+
+  <!-- SIGNUP FORM -->
+  <div id="signupBox" class="hidden">
+    <h2>Create Account</h2>
+    <input type="text" id="signupName" placeholder="Full Name">
+    <input type="email" id="signupEmail" placeholder="Email">
+    <input type="password" id="signupPassword" placeholder="Password">
+    <button onclick="signup()">Sign Up</button>
+    <div class="link">
+      Already have account? <span onclick="showLogin()">Login</span>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+
+const WEB_APP_URL="https://script.google.com/macros/s/AKfycbyAfNu104JKFumSsXghnNA4S8jvqV9vM1bc14j7He1A7OuDlU9CamB6NSx-o84fFkGv/exec";
+
+// ===== Toggle Forms =====
+function showSignup(){
+  document.getElementById("loginBox").classList.add("hidden");
+  document.getElementById("signupBox").classList.remove("hidden");
+}
+
+function showLogin(){
+  document.getElementById("signupBox").classList.add("hidden");
+  document.getElementById("loginBox").classList.remove("hidden");
+}
+
+// ===== Hash Password =====
+async function hashPassword(password){
+ const encoder = new TextEncoder();
+ const data = encoder.encode(password);
+ const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+ const hashArray = Array.from(new Uint8Array(hashBuffer));
+ return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// ===== Signup =====
+async function signup(){
+  let name=document.getElementById("signupName").value;
+  let email=document.getElementById("signupEmail").value;
+  let password=document.getElementById("signupPassword").value;
+
+  if(!name || !email || !password){
+    alert("Fill all fields");
+    return;
+  }
+
+  let passwordHash=await hashPassword(password);
+
+  await fetch(WEB_APP_URL,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"signup",
+      name,
+      email,
+      passwordHash
+    })
+  });
+
+  alert("Account Created. Please Login.");
+  showLogin();
+}
+
+// ===== Login =====
+async function login(){
+  let email=document.getElementById("loginEmail").value;
+  let password=document.getElementById("loginPassword").value;
+
+  if(!email || !password){
+    alert("Enter email & password");
+    return;
+  }
+
+  let passwordHash=await hashPassword(password);
+
+  let res=await fetch(WEB_APP_URL,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"login",
+      email,
+      passwordHash
+    })
+  });
+
+  let result=await res.json();
+
+  if(result.status==="success"){
+    localStorage.setItem("loggedIn","true");
+    window.location.href="index.html";
+  }else{
+    alert("Invalid credentials");
+  }
+}
+
+</script>
+
+</body>
+</html>
